@@ -7,9 +7,9 @@ DIM = 3
 def parallel_4_bar(config=False,braced=False,braced2=False):
     graph = nx.Graph()
     set_id=count()
-    p1 = Point(0,0,0) if config else next(set_id)
+    p1 = Point(0,0,1) if config else next(set_id)
     p2 = Point(5,0,0) if config else next(set_id)
-    p3 = Point(5,5,0) if config else next(set_id)
+    p3 = Point(5,5,3) if config else next(set_id)
     p4 = Point(0,5,0) if config else next(set_id)  
     graph.add_edges_from([(p1,p2),(p2,p3),(p3,p4),(p4,p1)])
     if braced: graph.add_edge(p4,p2)
