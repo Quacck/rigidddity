@@ -9,5 +9,5 @@ def test_plane_is_rigid():
 def test_paperplane_is_flexible():
     assert not main.check_model_rigidity("models/paperplane.stl") 
 
-def test_sphere_is_rigid():
-    assert main.check_model_rigidity("models/sphere.stl")
+#def test_sphere_is_rigid():
+    #assert main.check_model_rigidity("models/sphere.stl")

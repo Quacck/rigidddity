@@ -66,7 +66,7 @@ def model_to_graph(mesh: om.PolyMesh) -> nx.Graph:
     points = mesh.points()
 
     rng = np.random.default_rng()
-    wiggled_points = [Point([int(coord * 100000 + rng.random(DIM) * 1e-3) for coord in point]) for point in points]
+    wiggled_points = [Point([int((coord + rng.random() * 1e-3)  * 100000) for coord in point]) for point in points]
 
     for edge in mesh.edge_vertex_indices():
         graph.add_edge(wiggled_points[edge[0]], wiggled_points[edge[1]])
@@ -109,9 +109,8 @@ def get_model_motion_string(meshname):
    return motions_to_string(get_motions(model_to_matrix(meshname)))
 
 if __name__ == "__main__":
-    A = model_to_matrix("models/sphere.stl")
+    A = model_to_matrix("models/paperplane.stl")
     pprint(A)
     print(A.shape)
     print ("the linkage is infinitesimally rigid!" if check_rigidity(A, True) else "the linkage is infinitesimally flexible")
     print(motions_to_string(get_motions(A)))
-
