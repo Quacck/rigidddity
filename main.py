@@ -1,5 +1,6 @@
 import networkx as nx
 from sympy import Matrix, pprint, floor, binomial
+import sympy
 from linkages import *
 import openmesh as om
 import numpy as np
@@ -28,15 +29,21 @@ def set_pinning(pins, M: Matrix):
 
     for pin in pins:
         for dim in range(DIM):
-            row = np.zeros(M.cols)
+            row = np.zeros(M.cols, int)
             row[pin*DIM + dim] = 1
             M = Matrix([M, list(row)])
 
     return M
 
+def close_to_zero(x): #unused
+    if isinstance(x, sympy.core.numbers.Rational):
+        return abs(x) < 1e-30
+    else:
+        return x.is_zero
+
 # helper function to convert nullspace to a list of motions 
-def getMotions(N):
-    if type(N) is Matrix: N = N.nullspace(simplify=True)
+def get_motions(N):
+    if type(N) is Matrix: N = N.nullspace()
     return [[format(float(val), '.15f') + "*v" + str(floor(i/DIM)+1) + ("xyzwrüdiger"[i%DIM]) for i,val in enumerate(vector) if val != 0] for vector in N]
 
 #just a cute function to convert detected motions into a human readible string
@@ -59,8 +66,7 @@ def model_to_graph(mesh: om.PolyMesh) -> nx.Graph:
     points = mesh.points()
 
     rng = np.random.default_rng()
-
-    wiggled_points = [Point(point) for point in points]
+    wiggled_points = [Point([int(coord * 100000 + rng.random(DIM) * 1e-3) for coord in point]) for point in points]
 
     for edge in mesh.edge_vertex_indices():
         graph.add_edge(wiggled_points[edge[0]], wiggled_points[edge[1]])
@@ -80,25 +86,32 @@ def model_to_graph(mesh: om.PolyMesh) -> nx.Graph:
 
     return graph    
 
-
-mesh = om.read_polymesh("models/paperPlane2.stl")
-
-graph = model_to_graph(mesh)
-
-def check_rigidity(M, pinned: bool): 
+def check_rigidity(M, pinned: bool):
+    rank = M.rank()
     if pinned:
-        return M.rank() == M.cols
+        return rank == M.cols
     
-    return M.rank() == M.cols - (DIM+1) * DIM / 2
+    return rank == M.cols - (DIM+1) * DIM / 2
 
-A = graph_to_matrix(graph)
-A = pin_face(mesh, A)
+def model_to_matrix(meshname):
+    mesh = om.read_polymesh(meshname)
 
-pprint(A)
+    graph = model_to_graph(mesh)
 
-#pprint(A.nullspace())
+    A = graph_to_matrix(graph)
+    A = pin_face(mesh, A)
+    return A
 
-print ("the linkage is infinitesimally rigid!" if check_rigidity(A, True) else "the linkage is infinitesimally flexible")
+def check_model_rigidity(meshname):
+    return check_rigidity(model_to_matrix(meshname), True)
 
-print(motions_to_string((getMotions(A))))
+def get_model_motion_string(meshname):
+   return motions_to_string(get_motions(model_to_matrix(meshname)))
+
+if __name__ == "__main__":
+    A = model_to_matrix("models/sphere.stl")
+    pprint(A)
+    print(A.shape)
+    print ("the linkage is infinitesimally rigid!" if check_rigidity(A, True) else "the linkage is infinitesimally flexible")
+    print(motions_to_string(get_motions(A)))
 
