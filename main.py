@@ -25,8 +25,10 @@ def pin_face(mesh: om.PolyMesh, M: Matrix) -> Matrix:
     return set_pinning(pins, M)
     
 
-def set_pinning(pins, M: Matrix) -> Matrix: #: Union(list, int)
+def set_pinning(pins, M: Matrix) -> Matrix:
     """
+    pins: list | int (not annotated above to suport Python <3.10)
+
     Pins vertices by adding a row for each dimension of the vertex 
     that has a 1 in that place and a 0 everywhere else:
 
