@@ -4,6 +4,7 @@ import sympy
 from linkages import *
 import openmesh as om
 import numpy as np
+import sys
 
 def graph_to_matrix(G):
     M = Matrix()
@@ -109,8 +110,9 @@ def get_model_motion_string(meshname):
    return motions_to_string(get_motions(model_to_matrix(meshname)))
 
 if __name__ == "__main__":
-    A = model_to_matrix("models/paperplane.stl")
-    pprint(A)
-    print(A.shape)
+    modelPath = sys.argv[1] if len(sys.argv) > 1 else "models/cube.stl"
+    print("Checking model:", modelPath)
+
+    A = model_to_matrix(modelPath)
     print ("the linkage is infinitesimally rigid!" if check_rigidity(A, True) else "the linkage is infinitesimally flexible")
     print(motions_to_string(get_motions(A)))
