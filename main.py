@@ -1,12 +1,12 @@
 import networkx as nx
-from sympy import Matrix, pprint, floor, binomial
-import sympy
+from sympy import Matrix, floor
 from linkages import *
 import openmesh as om
 import numpy as np
 import sys
+from typing import Union
 
-def graph_to_matrix(G):
+def graph_to_matrix(G: nx.graph) -> Matrix:
     M = Matrix()
     for edge in G.edges:
         row = []
@@ -19,13 +19,27 @@ def graph_to_matrix(G):
         M=Matrix([M,row])
     return M
 
-def pin_face(mesh: om.PolyMesh, M: Matrix):
+def pin_face(mesh: om.PolyMesh, M: Matrix) -> Matrix:
     face_to_be_pinned = next(mesh.faces())
     pins = [vertex.idx() for vertex in mesh.fv(face_to_be_pinned)]
     return set_pinning(pins, M)
     
 
-def set_pinning(pins, M: Matrix):
+def set_pinning(pins, M: Matrix) -> Matrix: #: Union(list, int)
+    """
+    Pins vertices by adding a row for each dimension of the vertex 
+    that has a 1 in that place and a 0 everywhere else:
+
+    E.g. set_pinning(1, M) would add the following rows:
+
+    [1,0,0, ...]
+    [0,1,0, ...]
+    [0,0,1, ...]
+
+    This differs from the approach we followed in the lecture, because 
+    that did wrongly removed motions without the pinned vertex that could
+    be created as a composite of motions with the pinned vertex
+    """
     if type(pins) is int: pins = [pins]
 
     for pin in pins:
@@ -36,22 +50,16 @@ def set_pinning(pins, M: Matrix):
 
     return M
 
-def close_to_zero(x): #unused
-    if isinstance(x, sympy.core.numbers.Rational):
-        return abs(x) < 1e-30
-    else:
-        return x.is_zero
-
 # helper function to convert nullspace to a list of motions 
-def get_motions(N):
-    if type(N) is Matrix: N = N.nullspace()
+def get_motions(M: Matrix) -> list:
+    N = M.nullspace()
     return [[format(float(val), '.15f') + "*v" + str(floor(i/DIM)+1) + ("xyzwrüdiger"[i%DIM]) for i,val in enumerate(vector) if val != 0] for vector in N]
 
-#just a cute function to convert detected motions into a human readible string
-def motions_to_string(motions):
+# just a cute function to convert detected motions into a human readible string
+def motions_to_string(motions: list) -> str:
     string = ""
     for v in motions:
-        if len(v) !=0:
+        if len(v) != 0:
             for val in v:
                 if val == v[0] and len(v)>1: word = " depends on "
                 elif val != v[len(v)-1]    : word = ", and "
@@ -61,17 +69,21 @@ def motions_to_string(motions):
     return string
 
 def model_to_graph(mesh: om.PolyMesh) -> nx.Graph:
-    mesh.update_normals() #lol
+    mesh.update_normals()
     graph = nx.Graph()
 
     points = mesh.points()
 
     rng = np.random.default_rng()
-    wiggled_points = [Point([int((coord + rng.random() * 1e-3)  * 100000) for coord in point]) for point in points]
+    # We slightly change the position of each vertex because otherwise vertices in one plane would 
+    # be considered to be independant in that dimension (difference would be zero) thus leading to infinitesimal motions that we don't care about. 
+    # The wiggling should not be too random however, as this would make it harder to calculate the nullspace.
+    wiggled_points = [Point([int((coord + rng.random() * 1e-3)  * 1e5) for coord in point]) for point in points]
 
     for edge in mesh.edge_vertex_indices():
         graph.add_edge(wiggled_points[edge[0]], wiggled_points[edge[1]])
 
+    # We add additional edges for adjacent faces that have the same normal. This makes plates rigid
     for face in mesh.faces():
         neighbouring_faces = mesh.ff(face)
         for neighbour in neighbouring_faces:
@@ -87,14 +99,20 @@ def model_to_graph(mesh: om.PolyMesh) -> nx.Graph:
 
     return graph    
 
-def check_rigidity(M, pinned: bool):
+def check_rigidity(M: Matrix, pinned: bool) -> bool:
+    """
+    Check whether M is rigid.
+    Pinned should be true if Matrix has already been pinned and false otherwise
+    """
     rank = M.rank()
     if pinned:
+        # During pinning we added rows, since we then dont have any trivial motions 
+        # we dont need to subtract them
         return rank == M.cols
     
     return rank == M.cols - (DIM+1) * DIM / 2
 
-def model_to_matrix(meshname):
+def model_to_matrix(meshname: str) -> Matrix:
     mesh = om.read_polymesh(meshname)
 
     graph = model_to_graph(mesh)
@@ -103,10 +121,10 @@ def model_to_matrix(meshname):
     A = pin_face(mesh, A)
     return A
 
-def check_model_rigidity(meshname):
+def check_model_rigidity(meshname: str) -> bool:
     return check_rigidity(model_to_matrix(meshname), True)
 
-def get_model_motion_string(meshname):
+def get_model_motion_string(meshname: str) -> str:
    return motions_to_string(get_motions(model_to_matrix(meshname)))
 
 if __name__ == "__main__":
